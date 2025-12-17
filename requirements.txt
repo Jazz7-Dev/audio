@@ -1,0 +1,8 @@
+flask
+tensorflow
+tensorflow-hub
+librosa
+moviepy
+colorama
+numpy
+matplotlib

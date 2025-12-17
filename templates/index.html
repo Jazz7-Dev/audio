@@ -1,0 +1,133 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Upload audio</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <style>
+      :root{--accent:#2b8cff;--muted:#6b7280}
+      body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial; margin: 24px; color:#111827 }
+      .container{max-width:900px;margin:0 auto}
+      h1{margin-bottom:6px}
+      p.lead{margin-top:0;color:var(--muted)}
+      .drop { border: 2px dashed #d1d5db; padding: 20px; border-radius: 8px; display:flex; gap:12px; align-items:center }
+      .drop.hover { border-color: var(--accent); background:#f8fbff }
+      .drop input{display:none}
+      .btn { background:var(--accent); color:white; border:none; padding:10px 14px; border-radius:6px; cursor:pointer }
+      .btn[disabled]{opacity:.6;cursor:default}
+      .status { margin-top:12px; color:var(--muted) }
+      table { border-collapse: collapse; width:100%; margin-top:16px }
+      th, td { text-align:left; padding:10px 12px; border-bottom:1px solid #eee }
+      tr.top { background: linear-gradient(90deg,#ecfdf5,#f0fdf4); font-weight:600 }
+      .audio-preview { margin-top:12px }
+      .spinner{width:18px;height:18px;border-radius:50%;border:3px solid #e5e7eb;border-top-color:var(--accent);animation:spin .9s linear infinite;display:inline-block;vertical-align:middle}
+      @keyframes spin{to{transform:rotate(360deg)}}
+      .meta{color:var(--muted);font-size:14px}
+      @media (max-width:640px){.drop{flex-direction:column;align-items:stretch}}
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Upload Audio / Video</h1>
+      <p class="lead">Choose an audio or video file (wav, mp3, mp4, flac, ogg, m4a). Drag & drop supported.</p>
+
+      {% if error %}
+        <p style="color:crimson">{{ error }}</p>
+      {% endif %}
+
+      <form id="uploadForm" method="post" enctype="multipart/form-data">
+        <label id="dropArea" class="drop">
+          <div style="flex:1">
+            <div style="font-weight:600">Drop a file here or click to choose</div>
+            <div class="meta">Supported: wav · mp3 · mp4 · flac · ogg · m4a</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end">
+            <input id="fileInput" type="file" name="file" accept="audio/*,video/*">
+            <button id="uploadBtn" class="btn" type="submit">Upload & Analyze</button>
+          </div>
+        </label>
+      </form>
+
+      <div id="status" class="status"></div>
+
+      <div id="preview" class="audio-preview"></div>
+      <div id="results"></div>
+    </div>
+
+    <script>
+      const form = document.getElementById('uploadForm');
+      const status = document.getElementById('status');
+      const resultsContainer = document.getElementById('results');
+      const dropArea = document.getElementById('dropArea');
+      const fileInput = document.getElementById('fileInput');
+      const uploadBtn = document.getElementById('uploadBtn');
+      const preview = document.getElementById('preview');
+
+      function setProcessing(on){
+        uploadBtn.disabled = on;
+        if(on) status.innerHTML = '<span class="spinner"></span> Uploading and analyzing...';
+        else if(status.textContent.includes('analy')) status.textContent = '';
+      }
+
+      // Drag & drop
+      ;['dragenter','dragover'].forEach(evt => dropArea.addEventListener(evt, e=>{ e.preventDefault(); dropArea.classList.add('hover'); }))
+      ;['dragleave','drop'].forEach(evt => dropArea.addEventListener(evt, e=>{ e.preventDefault(); dropArea.classList.remove('hover'); }))
+      dropArea.addEventListener('drop', (e)=>{ const f = e.dataTransfer.files[0]; if(f) handleFileSelect(f); })
+      dropArea.addEventListener('click', ()=> fileInput.click())
+      fileInput.addEventListener('change', ()=> { if(fileInput.files[0]) handleFileSelect(fileInput.files[0]); })
+
+      function handleFileSelect(file){
+        // show audio preview (if audio)
+        preview.innerHTML = '';
+        const ext = file.name.split('.').pop().toLowerCase();
+        if(['wav','mp3','ogg','m4a','flac'].includes(ext)){
+          const audio = document.createElement('audio');
+          audio.controls = true;
+          audio.src = URL.createObjectURL(file);
+          audio.style.width = '100%';
+          preview.appendChild(audio);
+        } else if(['mp4','mov','webm'].includes(ext)){
+          const video = document.createElement('video');
+          video.controls = true;
+          video.src = URL.createObjectURL(file);
+          video.style.maxWidth = '100%';
+          preview.appendChild(video);
+        }
+        // update underlying file input for upload
+        const dt = new DataTransfer(); dt.items.add(file); fileInput.files = dt.files;
+      }
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        resultsContainer.innerHTML = '';
+        status.textContent = '';
+
+        if (!fileInput.files.length) { status.textContent = 'Please select a file.'; return; }
+
+        const fd = new FormData(); fd.append('file', fileInput.files[0]);
+        setProcessing(true);
+
+        try {
+          const resp = await fetch('/analyze', { method: 'POST', body: fd });
+          if (!resp.ok) { const err = await resp.json().catch(()=>({})); status.textContent = err.error||'Upload failed'; setProcessing(false); return; }
+
+          const data = await resp.json();
+          const results = data.results || [];
+
+          // build table
+          let html = '<table><tr><th style="width:60px">Rank</th><th>Class</th><th style="width:120px">Percentage</th></tr>';
+          results.forEach((r, idx) => {
+            const cls = idx === 0 ? 'top' : '';
+            html += `<tr class="${cls}"><td>${idx+1}</td><td>${r.name}</td><td>${r.percentage.toFixed(2)}%</td></tr>`;
+          });
+          html += '</table>';
+
+          resultsContainer.innerHTML = html;
+        } catch (err) {
+          console.error(err);
+          status.textContent = 'Error analyzing file';
+        } finally { setProcessing(false); }
+      });
+    </script>
+  </body>
+</html>

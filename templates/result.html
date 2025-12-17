@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Analysis results</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <style>
+      body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial; margin: 24px; color:#111827 }
+      .container{max-width:800px;margin:0 auto}
+      table { border-collapse: collapse; width:100%; margin-top:16px }
+      th, td { text-align:left; padding:10px 12px; border-bottom:1px solid #eee }
+      tr.top { background: linear-gradient(90deg,#ecfdf5,#f0fdf4); font-weight:600 }
+      a.button{display:inline-block;padding:8px 12px;background:#2b8cff;color:#fff;border-radius:6px;text-decoration:none}
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Analysis results</h1>
+      <p><a class="button" href="/">Upload another file</a></p>
+
+      <table>
+        <tr><th style="width:60px">Rank</th><th>Class</th><th style="width:120px">Percentage</th></tr>
+        {% for r in results %}
+          <tr class="{% if loop.index0 == 0 %}top{% endif %}">
+            <td>{{ loop.index }}</td>
+            <td>{{ r.name }}</td>
+            <td>{{ '%.2f'|format(r.percentage) }}%</td>
+          </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </body>
+</html>
