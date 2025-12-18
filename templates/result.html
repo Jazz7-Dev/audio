@@ -1,33 +1,475 @@
 <!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>Analysis results</title>
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <style>
-      body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial; margin: 24px; color:#111827 }
-      .container{max-width:800px;margin:0 auto}
-      table { border-collapse: collapse; width:100%; margin-top:16px }
-      th, td { text-align:left; padding:10px 12px; border-bottom:1px solid #eee }
-      tr.top { background: linear-gradient(90deg,#ecfdf5,#f0fdf4); font-weight:600 }
-      a.button{display:inline-block;padding:8px 12px;background:#2b8cff;color:#fff;border-radius:6px;text-decoration:none}
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <h1>Analysis results</h1>
-      <p><a class="button" href="/">Upload another file</a></p>
+<html lang="en">
 
-      <table>
-        <tr><th style="width:60px">Rank</th><th>Class</th><th style="width:120px">Percentage</th></tr>
-        {% for r in results %}
-          <tr class="{% if loop.index0 == 0 %}top{% endif %}">
-            <td>{{ loop.index }}</td>
-            <td>{{ r.name }}</td>
-            <td>{{ '%.2f'|format(r.percentage) }}%</td>
-          </tr>
-        {% endfor %}
-      </table>
-    </div>
-  </body>
+<head>
+  <meta charset="utf-8">
+  <title>Analysis Results | Audio Sound Analyzer</title>
+  <meta name="description" content="View AI-powered audio classification results for your uploaded file.">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg-primary: #0a0a1a;
+      --bg-secondary: #12122a;
+      --glass-bg: rgba(255, 255, 255, 0.03);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --glass-border-hover: rgba(255, 255, 255, 0.15);
+      --text-primary: #ffffff;
+      --text-secondary: rgba(255, 255, 255, 0.6);
+      --text-muted: rgba(255, 255, 255, 0.4);
+      --accent-cyan: #00d9ff;
+      --accent-purple: #a855f7;
+      --accent-pink: #ec4899;
+      --accent-gradient: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple), var(--accent-pink));
+      --glow-cyan: 0 0 30px rgba(0, 217, 255, 0.3);
+      --glow-purple: 0 0 30px rgba(168, 85, 247, 0.3);
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg-primary);
+      min-height: 100vh;
+      color: var(--text-primary);
+      overflow-x: hidden;
+    }
+
+    /* Animated gradient background */
+    .bg-gradient {
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% 40%, rgba(0, 217, 255, 0.15), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 60%, rgba(168, 85, 247, 0.12), transparent),
+        radial-gradient(ellipse 50% 30% at 50% 80%, rgba(236, 72, 153, 0.1), transparent),
+        var(--bg-primary);
+      z-index: -2;
+    }
+
+    /* Floating particles */
+    .particles {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      overflow: hidden;
+    }
+
+    .particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: var(--accent-cyan);
+      border-radius: 50%;
+      opacity: 0.3;
+      animation: float 15s infinite ease-in-out;
+    }
+
+    .particle:nth-child(2) {
+      left: 20%;
+      animation-delay: -2s;
+      background: var(--accent-purple);
+    }
+
+    .particle:nth-child(3) {
+      left: 40%;
+      animation-delay: -4s;
+    }
+
+    .particle:nth-child(4) {
+      left: 60%;
+      animation-delay: -6s;
+      background: var(--accent-pink);
+    }
+
+    .particle:nth-child(5) {
+      left: 80%;
+      animation-delay: -8s;
+    }
+
+    .particle:nth-child(6) {
+      left: 90%;
+      animation-delay: -10s;
+      background: var(--accent-purple);
+    }
+
+    @keyframes float {
+
+      0%,
+      100% {
+        transform: translateY(100vh) scale(0);
+        opacity: 0;
+      }
+
+      10% {
+        opacity: 0.3;
+      }
+
+      90% {
+        opacity: 0.3;
+      }
+
+      100% {
+        transform: translateY(-10vh) scale(1);
+        opacity: 0;
+      }
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      margin-bottom: 16px;
+    }
+
+    .logo-icon {
+      width: 48px;
+      height: 48px;
+      background: var(--accent-gradient);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      box-shadow: var(--glow-purple);
+      transition: transform 0.3s;
+    }
+
+    .logo:hover .logo-icon {
+      transform: scale(1.1) rotate(5deg);
+    }
+
+    h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: clamp(24px, 4vw, 32px);
+      font-weight: 700;
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: var(--text-secondary);
+      font-size: 15px;
+    }
+
+    /* Back button */
+    .btn-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+      margin-bottom: 24px;
+    }
+
+    .btn-back:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--accent-cyan);
+      transform: translateX(-4px);
+    }
+
+    /* Glass card */
+    .glass-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      padding: 32px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      position: relative;
+      overflow: hidden;
+      animation: fadeInUp 0.5s ease;
+    }
+
+    .glass-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 24px;
+      padding: 1px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent, rgba(255, 255, 255, 0.05));
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Results header */
+    .results-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    .results-header-icon {
+      font-size: 28px;
+    }
+
+    .results-header h2 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 22px;
+      font-weight: 600;
+    }
+
+    .results-count {
+      margin-left: auto;
+      font-size: 13px;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.05);
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+
+    /* Result items */
+    .result-item {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid transparent;
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      transition: all 0.3s ease;
+      animation: fadeInUp 0.4s ease backwards;
+    }
+
+    .result-item:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: var(--glass-border);
+      transform: translateX(4px);
+    }
+
+    .result-item.top {
+      background: linear-gradient(135deg, rgba(0, 217, 255, 0.08), rgba(168, 85, 247, 0.08));
+      border-color: rgba(0, 217, 255, 0.2);
+    }
+
+    .result-item.top:hover {
+      border-color: rgba(0, 217, 255, 0.4);
+    }
+
+    .result-rank {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 15px;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-secondary);
+      flex-shrink: 0;
+    }
+
+    .result-item.top .result-rank {
+      background: var(--accent-gradient);
+      color: var(--bg-primary);
+      box-shadow: var(--glow-cyan);
+      font-size: 18px;
+    }
+
+    .result-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .result-name {
+      font-weight: 500;
+      font-size: 15px;
+      margin-bottom: 8px;
+      text-transform: capitalize;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .result-bar-bg {
+      height: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .result-bar {
+      height: 100%;
+      background: var(--accent-gradient);
+      border-radius: 4px;
+      transition: width 1s ease;
+      box-shadow: 0 0 12px rgba(0, 217, 255, 0.4);
+    }
+
+    .result-value {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 20px;
+      min-width: 75px;
+      text-align: right;
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      flex-shrink: 0;
+    }
+
+    /* Trophy icons for top 3 */
+    .medal {
+      font-size: 20px;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      margin-top: 48px;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .container {
+        padding: 24px 16px;
+      }
+
+      .glass-card {
+        padding: 24px 16px;
+      }
+
+      .result-item {
+        flex-wrap: wrap;
+        padding: 14px 16px;
+      }
+
+      .result-value {
+        width: 100%;
+        text-align: left;
+        margin-top: 8px;
+        font-size: 18px;
+      }
+
+      .result-rank {
+        width: 36px;
+        height: 36px;
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="bg-gradient"></div>
+  <div class="particles">
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+  </div>
+
+  <div class="container">
+    <header class="header">
+      <a href="/" class="logo">
+        <div class="logo-icon">🎵</div>
+      </a>
+      <h1>Analysis Complete</h1>
+      <p class="subtitle">Here's what we found in your audio file</p>
+    </header>
+
+    <a href="/" class="btn-back">
+      <span>←</span>
+      <span>Analyze Another File</span>
+    </a>
+
+    <main class="glass-card">
+      <div class="results-header">
+        <span class="results-header-icon">📊</span>
+        <h2>Classification Results</h2>
+        <span class="results-count">{{ results|length }} classes detected</span>
+      </div>
+
+      {% for r in results %}
+      {% set is_top = loop.index0 == 0 %}
+      {% set delay = loop.index0 * 0.06 %}
+      <div class="result-item {% if is_top %}top{% endif %}" style="animation-delay: {{ delay }}s">
+        <div class="result-rank">
+          {% if loop.index == 1 %}
+          <span class="medal">🏆</span>
+          {% elif loop.index == 2 %}
+          <span class="medal">🥈</span>
+          {% elif loop.index == 3 %}
+          <span class="medal">🥉</span>
+          {% else %}
+          {{ loop.index }}
+          {% endif %}
+        </div>
+        <div class="result-info">
+          <div class="result-name">{{ r.name }}</div>
+          <div class="result-bar-bg">
+            <div class="result-bar" style="width: {{ r.percentage }}%"></div>
+          </div>
+        </div>
+        <div class="result-value">{{ '%.1f'|format(r.percentage) }}%</div>
+      </div>
+      {% endfor %}
+    </main>
+
+    <footer class="footer">
+      Powered by YAMNet • TensorFlow Audio Classification
+    </footer>
+  </div>
+</body>
+
 </html>
